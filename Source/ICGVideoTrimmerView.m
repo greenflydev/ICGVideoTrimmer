@@ -148,6 +148,7 @@
 }
 
 #define EDGE_EXTENSION_FOR_THUMB 30
+#define EDGE_INSET_FOR_THUMB 2
 - (void)resetSubviews
 {
     CALayer *sideMaskingLayer = [CALayer new];
@@ -216,7 +217,7 @@
     [self addSubview:self.leftOverlayView];
     
     // add right overlay view
-    CGFloat rightViewFrameX = CGRectGetWidth(self.frameView.frame) < CGRectGetWidth(self.frame) ? CGRectGetMaxX(self.frameView.frame) : CGRectGetWidth(self.frame) - self.thumbWidth;
+    CGFloat rightViewFrameX = CGRectGetWidth(self.frameView.frame) < CGRectGetWidth(self.frame) ? CGRectGetMaxX(self.frameView.frame) - self.thumbWidth - EDGE_INSET_FOR_THUMB : CGRectGetWidth(self.frame) - self.thumbWidth;
     self.rightOverlayView = [[HitTestView alloc] initWithFrame:CGRectMake(rightViewFrameX, 0, self.overlayWidth, CGRectGetHeight(self.frameView.frame))];
     self.rightOverlayView.hitTestEdgeInsets = UIEdgeInsetsMake(0, -(EDGE_EXTENSION_FOR_THUMB), 0, 0);
     
@@ -436,9 +437,6 @@
     }
     
     Float64 duration = CMTimeGetSeconds([self.asset duration]);
-    if (duration > self.maxLength) {
-        duration = self.maxLength;
-    }
     CGFloat screenWidth = CGRectGetWidth(self.frame) - 2*self.thumbWidth; // quick fix to make up for the width of thumb views
     NSInteger actualFramesNeeded;
     
