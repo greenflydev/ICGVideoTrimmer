@@ -217,7 +217,9 @@
     [self addSubview:self.leftOverlayView];
     
     // add right overlay view
-    CGFloat rightViewFrameX = CGRectGetWidth(self.frameView.frame) < CGRectGetWidth(self.frame) ? CGRectGetMaxX(self.frameView.frame) - self.thumbWidth - EDGE_INSET_FOR_THUMB : CGRectGetWidth(self.frame) - self.thumbWidth;
+    CGFloat rightViewFrameX = CGRectGetWidth(self.frameView.frame) < CGRectGetWidth(self.frame)
+        ? CGRectGetMaxX(self.frameView.frame)
+        : CGRectGetWidth(self.frame) - self.thumbWidth;
     self.rightOverlayView = [[HitTestView alloc] initWithFrame:CGRectMake(rightViewFrameX, 0, self.overlayWidth, CGRectGetHeight(self.frameView.frame))];
     self.rightOverlayView.hitTestEdgeInsets = UIEdgeInsetsMake(0, -(EDGE_EXTENSION_FOR_THUMB), 0, 0);
     
@@ -334,7 +336,7 @@
 
 
 - (void)seekToTime:(CGFloat) time
-{
+{    
     CGFloat duration = fabs(_prevTrackerTime - time);
     BOOL animate = (duration>1) ?  NO : YES;
     _prevTrackerTime = time;
@@ -373,7 +375,6 @@
 {
     NSLog(@"leftOverlayView:%f , rightOverlayView:%f contentOffset.x:%@", CGRectGetMaxX(self.leftOverlayView.frame) , CGRectGetMaxX(self.rightOverlayView.frame) , @(self.scrollView.contentOffset.x));
     
-    
     CGFloat start = CGRectGetMaxX(self.leftOverlayView.frame) / self.widthPerSecond + (self.scrollView.contentOffset.x -self.thumbWidth) / self.widthPerSecond;
     CGFloat end = CGRectGetMinX(self.rightOverlayView.frame) / self.widthPerSecond + (self.scrollView.contentOffset.x - self.thumbWidth) / self.widthPerSecond;
     
@@ -394,6 +395,7 @@
     {
         [self.delegate trimmerView:self didChangeLeftPosition:self.startTime rightPosition:self.endTime];
     }
+    
 }
 
 -(void) notifyDelegateOfEndEditing
@@ -408,17 +410,24 @@
 {
     self.imageGenerator = [AVAssetImageGenerator assetImageGeneratorWithAsset:self.asset];
     self.imageGenerator.appliesPreferredTrackTransform = YES;
-    if ([self isRetina]){
-        self.imageGenerator.maximumSize = CGSizeMake(CGRectGetWidth(self.frameView.frame)*2, CGRectGetHeight(self.frameView.frame)*2);
-    } else {
-        self.imageGenerator.maximumSize = CGSizeMake(CGRectGetWidth(self.frameView.frame), CGRectGetHeight(self.frameView.frame));
-    }
-    
-    CGFloat picWidth = 0;
     
     // First image
     NSError *error;
     CMTime actualTime;
+    
+    // reasonable defaults to prevent crashes
+    CGFloat h = CGRectGetHeight(self.frameView.frame);
+    CGFloat w = CGRectGetHeight(self.frameView.frame);
+    CGFloat picWidth = w;
+    
+    AVAssetTrack *videoTrack = [[self.asset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
+    if (videoTrack) {
+        CGSize naturalSize = CGSizeApplyAffineTransform(videoTrack.naturalSize, videoTrack.preferredTransform);
+        naturalSize = CGSizeMake(fabs(naturalSize.width), fabs(naturalSize.height));
+        h = CGRectGetHeight(self.frameView.frame);
+        w = (int)((h * naturalSize.width) / naturalSize.height);
+    }
+
     CGImageRef halfWayImage = [self.imageGenerator copyCGImageAtTime:kCMTimeZero actualTime:&actualTime error:&error];
     UIImage *videoScreen;
     if ([self isRetina]){
@@ -429,7 +438,8 @@
     if (halfWayImage != NULL) {
         UIImageView *tmp = [[UIImageView alloc] initWithImage:videoScreen];
         CGRect rect = tmp.frame;
-        rect.size.width = videoScreen.size.width;
+        rect.size.width = w;
+        rect.size.height = h;
         tmp.frame = rect;
         [self.frameView addSubview:tmp];
         picWidth = tmp.frame.size.width;
@@ -437,13 +447,14 @@
     }
     
     Float64 duration = CMTimeGetSeconds([self.asset duration]);
-    CGFloat screenWidth = CGRectGetWidth(self.frame) - 2*self.thumbWidth; // quick fix to make up for the width of thumb views
+    CGFloat screenWidth = CGRectGetWidth(self.frame) - (2 * self.thumbWidth); // quick fix to make up for the width of thumb views
     NSInteger actualFramesNeeded;
     
     CGFloat factor = (duration / self.maxLength);
     factor = (factor < 1 ? 1 : factor);
     CGFloat frameViewFrameWidth = factor * screenWidth;
     [self.frameView setFrame:CGRectMake(self.thumbWidth, 0, frameViewFrameWidth, CGRectGetHeight(self.frameView.frame))];
+    
     CGFloat contentViewFrameWidth = CMTimeGetSeconds([self.asset duration]) <= self.maxLength + 0.5 ? self.bounds.size.width : frameViewFrameWidth + 2*self.thumbWidth;
     [self.contentView setFrame:CGRectMake(0, 0, contentViewFrameWidth, CGRectGetHeight(self.contentView.frame))];
     [self.scrollView setContentSize:self.contentView.frame.size];
@@ -467,6 +478,7 @@
         currentFrame.origin.x = i*picWidth;
         
         currentFrame.size.width = picWidth;
+        currentFrame.size.height = h;
         preferredWidth += currentFrame.size.width;
         
         if( i == actualFramesNeeded-1){
