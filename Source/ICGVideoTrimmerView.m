@@ -408,6 +408,7 @@
 {
     self.imageGenerator = [AVAssetImageGenerator assetImageGeneratorWithAsset:self.asset];
     self.imageGenerator.appliesPreferredTrackTransform = YES;
+    self.imageGenerator.maximumSize = CGSizeMake(100, 100);
     
     // First image
     NSError *error;
